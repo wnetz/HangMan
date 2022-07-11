@@ -1,21 +1,21 @@
 package project5;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Random;
-import java.util.Scanner;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
 
 public class Project5
 {
     Random rand;
-    File dict;
     Scanner scan;
     String word;
-    String root = "./src/Word lists in csv/";
+    String root = "./src/WordListsInCSV/";
 
     public static void main(String[] args) {
-        new Project5(new Scanner(System.in)).run();
+        Project5 q = new Project5(new Scanner(System.in));
+        q.run();
     }
     public Project5(Scanner s)
     {
@@ -26,27 +26,17 @@ public class Project5
     public String pickWord()
     {
         String file = getFile();
-        dict = new File(file);
         String w = "";
+        System.out.println(file);
         try
         {
-            Scanner fileIn = new Scanner(dict);
-            file = "";
-            if(fileIn.hasNext())
-            {
-                file = fileIn.nextLine();
-            }
-            while (fileIn.hasNext())
-            {
-                file = file +","+ fileIn.nextLine();
-            }
-            String [] words = file.split(",");
-            w = words[rand.nextInt(words.length)];
+            List<String> words = Files.readAllLines(Paths.get(file), StandardCharsets.UTF_8);
+            w = words.get(rand.nextInt(words.size()));
             System.out.println(w);
         }
-        catch(FileNotFoundException e)
+        catch (IOException e)
         {
-            System.out.println("file not found");
+            System.out.println("file not found 3");
         }
         return w.replaceAll(" ", "");
     }
@@ -57,77 +47,115 @@ public class Project5
     }
     public int run()
     {
-        int score = 0;
+
+        String man = "";
         System.out.println("H A N G M A N");
-        String s1 = " +---+\n";
-        String s2 = "     |\n";
-        String s3 = "     |\n";
-        String s4 = "     |\n";
-        String s5 = "     |\n";
-        String s6 = "########";
-        boolean again = false;
+        try
+        {
+            man = Files.readAllLines(Paths.get("./src/hang.txt"), StandardCharsets.UTF_8).get(0);
+            man = man.replaceAll(",","\n");
+        }
+        catch (IOException e)
+        {
+            System.out.println("file not found 1");
+        }
+        boolean again = true;
+        String missed = "";
+        String guessed = "";
+        int score = -1;
+        int remaining = word.length();
+        System.out.print("what is your name: ");
+        String name = scan.nextLine();
         do
         {
-            score = 0;
-            word = pickWord();
-            ArrayList<Character> missed = new ArrayList<>();
-            ArrayList<Character> guessed = new ArrayList<>();
-            int remaining = word.length();
-            while (score < 7 && remaining > 0)
+            if(score < 0)
             {
-                System.out.println(s1 + s2 + s3 + s4 + s5 + s6);
+                score = 0;
+                //word = pickWord();
+                word = "destitute";
+                missed = "";
+                guessed = "";
+                remaining = word.length();
+            }
+            else if (score < 7 && remaining > 0)
+            {
+                String temp = guessed;
+                System.out.println(man);
                 System.out.println("Missed: " + missed);
                 String hidden = "";
-                for(char c : word.toCharArray())
-                {
-                    if(guessed.contains(c))
-                    {
-                        hidden = hidden + c;
-                    }
-                    else
-                    {
-                        hidden = hidden + "_";
-                    }
-                }
+                Arrays.stream(word.split(""))
+                        .forEach(c->{
+                            if(temp.contains(c))
+                            {
+                                System.out.print(c);
+                            }
+                            else
+                            {
+                                System.out.print("_");
+                            }
+                        });
                 System.out.println(hidden);
-                System.out.println("Guess: ");
+                System.out.print("Guess: ");
                 char guess = scan.nextLine().charAt(0);
-                if(word.indexOf(guess)==-1)
-                {
+                if(word.indexOf(guess)==-1) {
                     score++;
-                    missed.add(guess);
-                    switch (score)
+                    if(missed.indexOf(guess) == -1)
                     {
-                        case 1: s2 = " O   |\n";break;
-                        case 2: s3 = " |   |\n";break;
-                        case 3: s3 = "/|   |\n";break;
-                        case 4: s3 = "/|\\  |\n";break;
-                        case 5: s4 = "/    |\n";break;
-                        case 6: s4 = "/ \\  |\n";break;
-                        default:
+                        missed = missed + guess;
+                    }
+                    if (score < 7)
+                    {
+                        try {
+                            man = Files.readAllLines(Paths.get("./src/hang.txt"), StandardCharsets.UTF_8).get(score);
+                            man = man.replaceAll(",", "\n");
+                        } catch (IOException e) {
+                            System.out.println("file not found 2");
+                        }
                     }
                 }
                 else if(guessed.indexOf(guess) == -1)
                 {
-                    guessed.add(guess);
-                    remaining--;
+                    guessed = guessed + guess;
+                    remaining -= Arrays.stream(word.split("")).reduce("",(a,b) -> b.indexOf(guess)!=-1? a+b:a).length();
                 }
-                remaining = 0;
-                for(char c : word.toCharArray())
+            }
+            else if(score == 7 || remaining == 0)
+            {
+                if(score == 7)
                 {
-                    if(!guessed.contains(c))
+                    System.out.println("you lose");
+                    System.out.println("the word was " + word);
+                }
+                else
+                {
+                    double playerScore = score == 0 ?word.length()*2:word.length()/(double)score;
+                    try
                     {
-                        remaining ++;
+                        List<Double> scores = Files.readAllLines(Paths.get("./src/score.txt"), StandardCharsets.UTF_8)
+                                .stream()
+                                .map(e -> Double.valueOf(e.substring(e.indexOf(":") + 1)))
+                                .sorted()
+                                .toList();
+                        if(scores.size() > 0 && scores.get(scores.size()-1) < playerScore)
+                        {
+                            System.out.println("you set a new high score of " + playerScore);
+                        }
+                        else
+                        {
+                            System.out.println("score: " + playerScore);
+                        }
+                        BufferedWriter writer = new BufferedWriter(new FileWriter("./src/score.txt",true));
+                        writer.newLine();
+                        writer.write(name + ":" + playerScore);
+                        writer.close();
+                    } catch (IOException e) {
+                        System.out.println("file not found 3");
                     }
                 }
+                System.out.println("again?(y/n)");
+                again = scan.nextLine().charAt(0) == 'y';
+                score = -1;
             }
-            if(score == 7)
-            {
-                System.out.println("you lose");
-                System.out.println("the word was " + word);
-            }
-            System.out.println("again?(y/n)");
-            again = scan.nextLine().charAt(0) == 'y';
         }while(again);
         return 0;
     }
